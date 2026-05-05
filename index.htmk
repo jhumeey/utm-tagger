@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trackr — UTM Tag Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080810;
+    --surface: #0f0f1a;
+    --surface-2: #161628;
+    --surface-3: #1e1e35;
+    --border: rgba(255,255,255,0.07);
+    --border-active: rgba(139,92,246,0.5);
+    --text: #f0eeff;
+    --text-2: #9090b0;
+    --text-3: #5a5a80;
+    --accent: #8b5cf6;
+    --accent-2: #6d28d9;
+    --accent-glow: rgba(139,92,246,0.25);
+    --blue: #38bdf8;
+    --blue-dim: rgba(56,189,248,0.12);
+    --green: #34d399;
+    --red: #f87171;
+    --serif: 'Syne', sans-serif;
+    --sans: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  /* GLOW ORBS */
+  .orb {
+    position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+    filter: blur(80px);
+  }
+  .orb-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+    top: -100px; left: -100px;
+  }
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 70%);
+    bottom: 0; right: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    background: rgba(8,8,16,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .nav-logo-mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+  .nav-logo-mark svg { display: block; }
+  .nav-logo-name {
+    font-family: var(--serif); font-size: 17px; font-weight: 700;
+    color: var(--text); letter-spacing: -0.01em;
+  }
+  .nav-logo-name span { color: var(--accent); }
+  .nav-badge {
+    font-size: 9px; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1px solid rgba(139,92,246,0.3); padding: 3px 10px;
+    border-radius: 20px; background: rgba(139,92,246,0.06);
+  }
+  .nav-right { display: flex; align-items: center; gap: 6px; }
+  .nav-link {
+    font-size: 12px; color: var(--text-2); text-decoration: none;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    transition: color 0.2s, background 0.2s; font-weight: 400;
+  }
+  .nav-link:hover { color: var(--text); background: var(--surface-2); }
+  .nav-cta {
+    font-size: 12px; font-weight: 500; color: var(--text);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none; padding: 7px 18px; border-radius: var(--radius-sm);
+    cursor: pointer; font-family: var(--sans);
+    box-shadow: 0 0 16px var(--accent-glow);
+    transition: opacity 0.2s, box-shadow 0.2s;
+  }
+  .nav-cta:hover { opacity: 0.85; box-shadow: 0 0 24px var(--accent-glow); }
+
+  /* HERO */
+  .hero {
+    position: relative; z-index: 1;
+    padding: 80px 40px 60px;
+    text-align: center; max-width: 680px; margin: 0 auto;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2);
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .hero-eyebrow::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); display: block;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+  .hero h1 {
+    font-family: var(--serif); font-size: clamp(32px, 5vw, 52px);
+    font-weight: 700; line-height: 1.1; color: var(--text);
+    letter-spacing: -0.02em; margin-bottom: 16px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero-desc {
+    font-size: 15px; color: var(--text-2); line-height: 1.7; max-width: 520px; margin: 0 auto;
+  }
+
+  /* MAIN CONTAINER */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 860px; margin: 0 auto; padding: 0 40px 80px;
+  }
+
+  /* TABS */
+  .tabs-wrap {
+    display: flex; gap: 4px; padding: 4px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 28px;
+    width: fit-content;
+  }
+  .tab-btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    color: var(--text-2); background: none; border: none;
+    padding: 9px 24px; border-radius: 9px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    color: var(--text); background: var(--surface-3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .card:focus-within { border-color: rgba(139,92,246,0.3); }
+
+  .card-header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .card-title {
+    font-family: var(--serif); font-size: 16px; font-weight: 600;
+    color: var(--text); margin-bottom: 4px;
+  }
+  .card-desc { font-size: 12px; color: var(--text-2); max-width: 440px; line-height: 1.6; }
+  .card-step {
+    font-family: var(--mono); font-size: 11px; color: var(--text-3);
+    background: var(--surface-3); padding: 4px 10px; border-radius: 4px;
+    border: 1px solid var(--border); white-space: nowrap; margin-left: 16px; margin-top: 2px;
+  }
+
+  /* FORM */
+  .form-body { padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-row.full { grid-template-columns: 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-2);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .required-dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); display: inline-block;
+  }
+  .field-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+  .input-wrap {
+    display: flex; align-items: center;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-wrap:focus-within {
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.1);
+  }
+  .input-prefix {
+    padding: 0 12px; font-family: var(--mono); font-size: 12px;
+    color: var(--text-3); border-right: 1px solid var(--border);
+    background: var(--surface-3); height: 100%;
+    display: flex; align-items: center; white-space: nowrap;
+    min-height: 42px;
+  }
+  .input-select {
+    background: var(--surface-3); border: none; outline: none;
+    color: var(--text-2); font-family: var(--mono); font-size: 12px;
+    padding: 0 10px; height: 42px; cursor: pointer;
+    border-right: 1px solid var(--border);
+    appearance: none; -webkit-appearance: none;
+  }
+  input[type="text"], input[type="url"] {
+    background: none; border: none; outline: none;
+    font-family: var(--sans); font-size: 13px; font-weight: 400;
+    color: var(--text); padding: 0 14px; width: 100%;
+    height: 42px; caret-color: var(--accent);
+  }
+  input::placeholder { color: var(--text-3); }
+
+  /* DIVIDER */
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 4px 0;
+  }
+  .divider-line { flex: 1; height: 1px; background: var(--border); }
+  .divider-text { font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; white-space: nowrap; }
+
+  /* OUTPUT SECTION */
+  .output-section {
+    margin: 0 28px 28px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .output-label {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 10px; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .output-label-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-3); display: block;
+  }
+  .output-label-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  .output-url {
+    padding: 16px; font-family: var(--mono); font-size: 12px;
+    color: var(--blue); line-height: 1.6; word-break: break-all;
+    min-height: 60px;
+  }
+  .output-placeholder {
+    padding: 16px; font-size: 13px; color: var(--text-3);
+    display: flex; align-items: center; gap: 10px; min-height: 60px;
+  }
+  .output-placeholder svg { opacity: 0.4; flex-shrink: 0; }
+
+  .output-actions {
+    padding: 12px 16px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    border: none; border-radius: var(--radius-sm);
+    padding: 8px 16px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--text);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .btn-primary:hover { opacity: 0.85; box-shadow: 0 0 20px var(--accent-glow); }
+  .btn-ghost {
+    background: var(--surface-3); color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border-active); }
+  .btn.copied { background: var(--green); color: #000; box-shadow: 0 0 12px rgba(52,211,153,0.3); }
+
+  /* BULK SECTION HEADING */
+  .bulk-link-heading {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px 0;
+  }
+  .bulk-link-num {
+    font-family: var(--serif); font-size: 14px; font-weight: 600;
+    color: var(--text); display: flex; align-items: center; gap: 10px;
+  }
+  .bulk-link-badge {
+    font-family: var(--mono); font-size: 10px; color: var(--accent);
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .btn-remove-link {
+    font-size: 11px; color: var(--text-3); background: none; border: none;
+    cursor: pointer; padding: 4px 8px; border-radius: 4px;
+    font-family: var(--sans); transition: color 0.2s, background 0.2s;
+  }
+  .btn-remove-link:hover { color: var(--red); background: rgba(248,113,113,0.08); }
+
+  /* ADD LINK BTN */
+  .add-link-wrap { padding: 0 28px 28px; }
+  .btn-add-link {
+    width: 100%; padding: 12px;
+    background: none; border: 1px dashed rgba(139,92,246,0.3);
+    border-radius: var(--radius); color: var(--accent);
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-add-link:hover {
+    background: rgba(139,92,246,0.05);
+    border-color: rgba(139,92,246,0.5);
+  }
+
+  /* PARAMS TABLE */
+  .params-section {
+    margin-top: 32px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+  }
+  .params-header {
+    padding: 20px 28px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .params-title {
+    font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  .params-subtitle { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--surface-2); }
+  th {
+    padding: 12px 20px; text-align: left;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3);
+    font-family: var(--sans); border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 14px 20px; font-size: 13px; color: var(--text-2);
+    border-bottom: 1px solid var(--border); vertical-align: top;
+    line-height: 1.6;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  td:first-child { color: var(--text); font-weight: 400; }
+  .param-code {
+    font-family: var(--mono); font-size: 11px; color: var(--blue);
+    background: var(--blue-dim); padding: 2px 7px; border-radius: 4px;
+    display: block; margin-top: 3px;
+  }
+  .param-pill {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--surface-3); color: var(--text-2);
+    padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border);
+  }
+  .required-yes {
+    font-size: 11px; color: var(--green); font-weight: 500;
+    background: rgba(52,211,153,0.08); padding: 3px 10px;
+    border-radius: 20px; display: inline-block;
+  }
+  .required-no {
+    font-size: 11px; color: var(--text-3); font-weight: 400;
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative; z-index: 1;
+    padding: 24px 40px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    max-width: 860px; margin: 0 auto;
+  }
+  .footer-brand {
+    font-family: var(--serif); font-size: 13px; font-weight: 600;
+    color: var(--text-3);
+  }
+  .footer-brand span { color: var(--accent); }
+  .footer-note { font-size: 11px; color: var(--text-3); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero { animation: fadeUp 0.5s ease both; }
+  .container { animation: fadeUp 0.5s ease 0.1s both; }
+
+  /* HIDDEN */
+  .hidden { display: none !important; }
+
+  /* BULK DIVIDER */
+  .bulk-divider {
+    height: 1px; background: var(--border); margin: 20px 28px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-mark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 8L8 2L14 8L8 14L2 8Z" fill="white" opacity="0.9"/>
+        <path d="M5 8L8 5L11 8L8 11L5 8Z" fill="white" opacity="0.4"/>
+      </svg>
+    </div>
+    <span class="nav-logo-name">Track<span>r</span></span>
+  </a>
+
+  <span class="nav-badge">UTM Generator</span>
+
+  <div class="nav-right">
+    <a href="#params" class="nav-link">Parameters</a>
+    <a href="#bulk" class="nav-link">Bulk Mode</a>
+    <button class="nav-cta">Get started free</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Free UTM Generator</div>
+  <h1>Tag every link.<br><em>Track every click.</em></h1>
+  <p class="hero-desc">Build clean UTM parameters for single or bulk URLs. Measure every campaign with precision in Google Analytics, GA4, or any analytics tool.</p>
+</div>
+
+<div class="container">
+
+  <!-- TABS -->
+  <div class="tabs-wrap">
+    <button class="tab-btn active" onclick="switchTab('single', this)">Single UTM</button>
+    <button class="tab-btn" onclick="switchTab('bulk', this)" id="bulk">Bulk UTM</button>
+  </div>
+
+  <!-- SINGLE TAB -->
+  <div id="tab-single">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Create a Single UTM Tag</div>
+          <div class="card-desc">Fill in the required fields marked with a dot. Your tagged URL will generate automatically below.</div>
+        </div>
+        <div class="card-step">Step 1 of 1</div>
+      </div>
+
+      <div class="form-body">
+        <div class="form-row full">
+          <div class="field">
+            <label class="field-label">
+              <span class="required-dot"></span> Website URL
+            </label>
+            <div class="input-wrap">
+              <select class="input-select" id="s-protocol">
+                <option value="https://">https://</option>
+                <option value="http://">http://</option>
+              </select>
+              <input type="text" id="s-url" placeholder="yourwebsite.com/landing-page" oninput="generateSingle()" />
+            </div>
+            <div class="field-hint">The full destination URL for your campaign link.</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">
+              <span class="required-dot"></span> Campaign Source
+            </label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_source</span>
+              <input type="text" id="s-source" placeholder="google, newsletter" oninput="generateSingle()" />
+            </div>
+            <div class="field-hint">Where your traffic is coming from.</div>
+          </div>
+          <div class="field">
+            <label class="field-label">
+              <span class="required-dot"></span> Campaign Medium
+            </label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_medium</span>
+              <input type="text" id="s-medium" placeholder="cpc, email, social" oninput="generateSingle()" />
+            </div>
+            <div class="field-hint">The marketing channel used.</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Campaign Name</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_campaign</span>
+              <input type="text" id="s-campaign" placeholder="spring_sale, product_launch" oninput="generateSingle()" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Campaign ID</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_id</span>
+              <input type="text" id="s-id" placeholder="12345" oninput="generateSingle()" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Campaign Term</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_term</span>
+              <input type="text" id="s-term" placeholder="running+shoes" oninput="generateSingle()" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Campaign Content</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_content</span>
+              <input type="text" id="s-content" placeholder="banner_a, text_link" oninput="generateSingle()" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OUTPUT -->
+      <div class="output-section">
+        <div class="output-label">
+          <span class="output-label-dot" id="s-dot"></span>
+          Generated URL
+        </div>
+        <div id="s-output-valid" class="output-url hidden"></div>
+        <div id="s-output-empty" class="output-placeholder">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Fill in the required fields above and your tagged URL will appear here.
+        </div>
+        <div class="output-actions" id="s-actions" style="display:none">
+          <button class="btn btn-primary" id="s-copy-btn" onclick="copyUrl('s-output-valid', 's-copy-btn')">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 9V2a1 1 0 011-1h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Copy URL
+          </button>
+          <button class="btn btn-ghost" onclick="resetSingle()">Reset</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BULK TAB -->
+  <div id="tab-bulk" class="hidden">
+    <div class="card" id="bulk">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Create UTM Tags in Bulk</div>
+          <div class="card-desc">Generate UTM tagged URLs for multiple campaigns at once. Add as many links as you need.</div>
+        </div>
+        <div class="card-step">Multi-link mode</div>
+      </div>
+
+      <!-- SHARED URL -->
+      <div class="form-body" style="padding-bottom: 0;">
+        <div class="form-row full">
+          <div class="field">
+            <label class="field-label">
+              <span class="required-dot"></span> Base URL (shared across all links)
+            </label>
+            <div class="input-wrap">
+              <select class="input-select" id="b-protocol">
+                <option value="https://">https://</option>
+                <option value="http://">http://</option>
+              </select>
+              <input type="text" id="b-base-url" placeholder="yourwebsite.com/landing-page" oninput="generateAllBulk()" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bulk-divider"></div>
+
+      <!-- BULK LINKS CONTAINER -->
+      <div id="bulk-links-container"></div>
+
+      <!-- ADD LINK -->
+      <div class="add-link-wrap">
+        <button class="btn-add-link" onclick="addBulkLink()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Add another link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARAMS TABLE -->
+  <div class="params-section" id="params">
+    <div class="params-header">
+      <div>
+        <div class="params-title">UTM Parameters Reference</div>
+        <div class="params-subtitle">Detailed breakdown of each parameter and when to use it.</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Required</th>
+          <th>Example</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Campaign Source<span class="param-code">utm_source</span></td>
+          <td><span class="required-yes">Required</span></td>
+          <td><span class="param-pill">google</span></td>
+          <td>Identifies the referrer — a search engine, newsletter, or other source sending traffic to your site.</td>
+        </tr>
+        <tr>
+          <td>Campaign Medium<span class="param-code">utm_medium</span></td>
+          <td><span class="required-yes">Required</span></td>
+          <td><span class="param-pill">cpc</span></td>
+          <td>The marketing channel used — email, cost-per-click, social, banner, or similar.</td>
+        </tr>
+        <tr>
+          <td>Campaign Name<span class="param-code">utm_campaign</span></td>
+          <td><span class="required-yes">Required</span></td>
+          <td><span class="param-pill">spring_sale</span></td>
+          <td>The specific campaign name, slogan, promo code, or product. Used for campaign-level analysis.</td>
+        </tr>
+        <tr>
+          <td>Campaign ID<span class="param-code">utm_id</span></td>
+          <td><span class="required-no">Optional</span></td>
+          <td><span class="param-pill">12345</span></td>
+          <td>Used to identify a specific ads campaign. Helpful when managing multiple campaigns in the same tool.</td>
+        </tr>
+        <tr>
+          <td>Campaign Term<span class="param-code">utm_term</span></td>
+          <td><span class="required-no">Optional</span></td>
+          <td><span class="param-pill">running+shoes</span></td>
+          <td>Used for paid search. Identifies the keywords associated with this ad to track which terms convert.</td>
+        </tr>
+        <tr>
+          <td>Campaign Content<span class="param-code">utm_content</span></td>
+          <td><span class="required-no">Optional</span></td>
+          <td><span class="param-pill">banner_a</span></td>
+          <td>Used for A/B testing and content-targeted ads. Differentiates between links pointing to the same URL.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  <div class="footer-brand">Track<span>r</span></div>
+  <div class="footer-note">Free UTM Generator — no login required</div>
+</footer>
+
+<script>
+  // ─── SINGLE UTM ───────────────────────────────────────
+  function sanitize(str) {
+    return str.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '');
+  }
+
+  function generateSingle() {
+    const protocol = document.getElementById('s-protocol').value;
+    const url = document.getElementById('s-url').value.trim();
+    const source = document.getElementById('s-source').value.trim();
+    const medium = document.getElementById('s-medium').value.trim();
+    const campaign = document.getElementById('s-campaign').value.trim();
+    const id = document.getElementById('s-id').value.trim();
+    const term = document.getElementById('s-term').value.trim();
+    const content = document.getElementById('s-content').value.trim();
+
+    const validOut = document.getElementById('s-output-valid');
+    const emptyOut = document.getElementById('s-output-empty');
+    const actions = document.getElementById('s-actions');
+    const dot = document.getElementById('s-dot');
+
+    if (!url || !source || !medium) {
+      validOut.classList.add('hidden');
+      emptyOut.classList.remove('hidden');
+      actions.style.display = 'none';
+      dot.classList.remove('active');
+      return;
+    }
+
+    let base = protocol + url.replace(/^https?:\/\//, '');
+    let params = new URLSearchParams();
+    if (id) params.set('utm_id', sanitize(id));
+    params.set('utm_source', sanitize(source));
+    params.set('utm_medium', sanitize(medium));
+    if (campaign) params.set('utm_campaign', sanitize(campaign));
+    if (term) params.set('utm_term', sanitize(term));
+    if (content) params.set('utm_content', sanitize(content));
+
+    const finalUrl = base + '?' + params.toString();
+    validOut.textContent = finalUrl;
+    validOut.classList.remove('hidden');
+    emptyOut.classList.add('hidden');
+    actions.style.display = 'flex';
+    dot.classList.add('active');
+  }
+
+  function copyUrl(outputId, btnId) {
+    const text = document.getElementById(outputId).textContent;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById(btnId);
+      const original = btn.innerHTML;
+      btn.innerHTML = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  function resetSingle() {
+    ['s-url','s-source','s-medium','s-campaign','s-id','s-term','s-content'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    generateSingle();
+  }
+
+  // ─── BULK UTM ─────────────────────────────────────────
+  let bulkCount = 0;
+
+  function addBulkLink() {
+    bulkCount++;
+    const container = document.getElementById('bulk-links-container');
+    const div = document.createElement('div');
+    div.id = `bulk-link-${bulkCount}`;
+    div.innerHTML = `
+      <div class="bulk-link-heading">
+        <div class="bulk-link-num">
+          Link ${bulkCount}
+          <span class="bulk-link-badge">utm_${bulkCount}</span>
+        </div>
+        ${bulkCount > 1 ? `<button class="btn-remove-link" onclick="removeBulkLink(${bulkCount})">Remove</button>` : ''}
+      </div>
+      <div class="form-body" style="padding-top:16px; padding-bottom:0;">
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label"><span class="required-dot"></span> Campaign Source</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_source</span>
+              <input type="text" id="b${bulkCount}-source" placeholder="google, newsletter" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label"><span class="required-dot"></span> Campaign Medium</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_medium</span>
+              <input type="text" id="b${bulkCount}-medium" placeholder="cpc, email" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Campaign Name</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_campaign</span>
+              <input type="text" id="b${bulkCount}-campaign" placeholder="spring_sale" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Campaign Term</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_term</span>
+              <input type="text" id="b${bulkCount}-term" placeholder="keyword" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label">Campaign ID</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_id</span>
+              <input type="text" id="b${bulkCount}-id" placeholder="12345" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Campaign Content</label>
+            <div class="input-wrap">
+              <span class="input-prefix">utm_content</span>
+              <input type="text" id="b${bulkCount}-content" placeholder="banner_a" oninput="generateBulkLink(${bulkCount})" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="output-section" style="margin: 16px 28px 24px;">
+        <div class="output-label">
+          <span class="output-label-dot" id="b${bulkCount}-dot"></span>
+          Generated URL — Link ${bulkCount}
+        </div>
+        <div id="b${bulkCount}-out-valid" class="output-url hidden"></div>
+        <div id="b${bulkCount}-out-empty" class="output-placeholder">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Fill in source and medium to generate.
+        </div>
+        <div class="output-actions" id="b${bulkCount}-actions" style="display:none">
+          <button class="btn btn-primary" id="b${bulkCount}-copy-btn" onclick="copyUrl('b${bulkCount}-out-valid', 'b${bulkCount}-copy-btn')">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1 9V2a1 1 0 011-1h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Copy URL
+          </button>
+        </div>
+      </div>
+      ${bulkCount < 99 ? '<div class="bulk-divider"></div>' : ''}
+    `;
+    container.appendChild(div);
+  }
+
+  function removeBulkLink(n) {
+    const el = document.getElementById(`bulk-link-${n}`);
+    if (el) el.remove();
+  }
+
+  function generateBulkLink(n) {
+    const protocol = document.getElementById('b-protocol').value;
+    const baseUrl = document.getElementById('b-base-url').value.trim();
+    const source = document.getElementById(`b${n}-source`)?.value.trim() || '';
+    const medium = document.getElementById(`b${n}-medium`)?.value.trim() || '';
+    const campaign = document.getElementById(`b${n}-campaign`)?.value.trim() || '';
+    const term = document.getElementById(`b${n}-term`)?.value.trim() || '';
+    const id = document.getElementById(`b${n}-id`)?.value.trim() || '';
+    const content = document.getElementById(`b${n}-content`)?.value.trim() || '';
+
+    const valid = document.getElementById(`b${n}-out-valid`);
+    const empty = document.getElementById(`b${n}-out-empty`);
+    const actions = document.getElementById(`b${n}-actions`);
+    const dot = document.getElementById(`b${n}-dot`);
+
+    if (!baseUrl || !source || !medium) {
+      valid?.classList.add('hidden');
+      empty?.classList.remove('hidden');
+      if (actions) actions.style.display = 'none';
+      dot?.classList.remove('active');
+      return;
+    }
+
+    let base = protocol + baseUrl.replace(/^https?:\/\//, '');
+    let params = new URLSearchParams();
+    if (id) params.set('utm_id', sanitize(id));
+    params.set('utm_source', sanitize(source));
+    params.set('utm_medium', sanitize(medium));
+    if (campaign) params.set('utm_campaign', sanitize(campaign));
+    if (term) params.set('utm_term', sanitize(term));
+    if (content) params.set('utm_content', sanitize(content));
+
+    const finalUrl = base + '?' + params.toString();
+    if (valid) { valid.textContent = finalUrl; valid.classList.remove('hidden'); }
+    empty?.classList.add('hidden');
+    if (actions) actions.style.display = 'flex';
+    dot?.classList.add('active');
+  }
+
+  function generateAllBulk() {
+    for (let i = 1; i <= bulkCount; i++) {
+      if (document.getElementById(`bulk-link-${i}`)) generateBulkLink(i);
+    }
+  }
+
+  // ─── TABS ─────────────────────────────────────────────
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-single').classList.toggle('hidden', tab !== 'single');
+    document.getElementById('tab-bulk').classList.toggle('hidden', tab !== 'bulk');
+    if (tab === 'bulk' && bulkCount === 0) { addBulkLink(); addBulkLink(); }
+  }
+</script>
+</body>
+</html>
